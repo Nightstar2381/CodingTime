@@ -1,393 +1,514 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Code, CheckCircle, Plus, Trash2, Volume2, VolumeX, Sun, Moon, Settings, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CozyCode Timer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts (Optional for nice Thai font) -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-const CozyCodeApp = () => {
-  // --- State Management ---
-  const [mode, setMode] = useState('focus'); // 'focus', 'shortBreak', 'longBreak'
-  const [timeLeft, setTimeLeft] = useState(25 * 60);
-  const [isActive, setIsActive] = useState(false);
-  const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [cycleCount, setCycleCount] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [isEditingTime, setIsEditingTime] = useState(false);
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+        }
 
-  // Audio refs
-  const timerRef = useRef(null);
-
-  // --- Configuration ---
-  // Theme configuration for Light/Dark modes
-  const themeStyles = {
-    bg: isDarkMode ? 'bg-[#0f172a]' : 'bg-[#FDFBF7]', // Dark Slate vs Cream
-    card: isDarkMode ? 'bg-[#1e293b]/90 border-slate-700' : 'bg-white/90 border-white/60',
-    text: isDarkMode ? 'text-slate-100' : 'text-slate-700',
-    subtext: isDarkMode ? 'text-slate-400' : 'text-slate-500',
-    input: isDarkMode ? 'bg-[#334155] text-white placeholder-slate-400' : 'bg-white text-slate-700 placeholder-slate-400',
-    taskHover: isDarkMode ? 'hover:bg-[#334155]' : 'hover:bg-blue-50',
-    blob1: isDarkMode ? 'bg-blue-900' : 'bg-blue-200',
-    blob2: isDarkMode ? 'bg-indigo-900' : 'bg-cyan-200',
-  };
-
-  const MODES = {
-    focus: { 
-      defaultTime: 25 * 60, 
-      label: 'Focus Time', 
-      color: isDarkMode ? 'text-blue-400' : 'text-blue-500', 
-      ring: isDarkMode ? 'text-blue-500' : 'text-blue-400',
-      accent: 'bg-blue-500',
-      mascot: '👨‍💻' 
-    },
-    shortBreak: { 
-      defaultTime: 5 * 60, 
-      label: 'Short Break', 
-      color: isDarkMode ? 'text-teal-400' : 'text-teal-500', 
-      ring: isDarkMode ? 'text-teal-500' : 'text-teal-400',
-      accent: 'bg-teal-500',
-      mascot: '🍵' 
-    },
-    longBreak: { 
-      defaultTime: 15 * 60, 
-      label: 'Long Break', 
-      color: isDarkMode ? 'text-indigo-400' : 'text-indigo-500', 
-      ring: isDarkMode ? 'text-indigo-500' : 'text-indigo-400',
-      accent: 'bg-indigo-500',
-      mascot: '🛌' 
-    },
-  };
-
-  // --- Timer Logic ---
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      clearInterval(timerRef.current);
-      setIsActive(false);
-      handleTimerComplete();
-    }
-    return () => clearInterval(timerRef.current);
-  }, [isActive, timeLeft]);
-
-  const handleTimerComplete = () => {
-    if (soundEnabled) {
-      // Play sound here
-    }
-    
-    if (mode === 'focus') {
-      const newCycle = cycleCount + 1;
-      setCycleCount(newCycle);
-      if (newCycle % 4 === 0) {
-        switchMode('longBreak');
-      } else {
-        switchMode('shortBreak');
-      }
-    } else {
-      switchMode('focus');
-    }
-  };
-
-  const switchMode = (newMode) => {
-    setMode(newMode);
-    setTimeLeft(MODES[newMode].defaultTime);
-    setIsActive(false);
-    setIsEditingTime(false);
-  };
-
-  const toggleTimer = () => {
-    setIsActive(!isActive);
-    setIsEditingTime(false);
-  };
-
-  const resetTimer = () => {
-    setIsActive(false);
-    setTimeLeft(MODES[mode].defaultTime);
-    setIsEditingTime(false);
-  };
-
-  // --- Custom Time Logic ---
-  const adjustTime = (amount) => {
-    setTimeLeft(prev => {
-      const newTime = prev + amount;
-      return newTime > 0 ? newTime : 0; // Prevent negative time
-    });
-  };
-
-  const handleTimeInputBlur = (e) => {
-    setIsEditingTime(false);
-    let val = parseInt(e.target.value);
-    if (!isNaN(val) && val > 0) {
-      setTimeLeft(val * 60);
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      handleTimeInputBlur(e);
-    }
-  };
-
-  // --- Task Logic ---
-  const addTask = (e) => {
-    e.preventDefault();
-    if (!newTask.trim()) return;
-    setTasks([...tasks, { id: Date.now(), text: newTask, completed: false }]);
-    setNewTask('');
-  };
-
-  const toggleTask = (id) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-
-  const deleteTask = (id) => {
-    setTasks(tasks.filter(t => t.id !== id));
-  };
-
-  // --- Helper Functions ---
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const calculateProgress = () => {
-    // Note: Progress calculation is based on current total start time 
-    // Usually we track totalDuration separately, but for simplicity we assume max standard
-    // Or we just animate based on % of *something*. 
-    // To make the ring work nicely with custom time, we need a reference total.
-    // Here we'll just use the current timeLeft vs the mode default OR the max of both.
-    const total = Math.max(MODES[mode].defaultTime, timeLeft); 
-    // Fallback logic to prevent division by zero or weird jumps if we edit time higher than default
-    return total > 0 ? ((total - timeLeft) / total) * 100 : 0;
-  };
-
-  return (
-    <div className={`min-h-screen transition-colors duration-700 ease-in-out font-sans flex items-center justify-center p-4 ${themeStyles.bg}`}>
-      
-      {/* Main Card */}
-      <div className={`w-full max-w-md backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border transition-colors duration-500 relative ${themeStyles.card}`}>
-        
-        {/* Decorative Blobs */}
-        <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-700 ${themeStyles.blob1}`}></div>
-        <div className={`absolute -bottom-20 -left-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-700 ${themeStyles.blob2}`}></div>
-
-        <div className="relative z-10 p-8 flex flex-col items-center">
-          
-          {/* Header & Controls */}
-          <div className={`w-full flex justify-between items-center mb-6 text-sm font-medium ${themeStyles.subtext}`}>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-black/5'}`}>
-              <span>รอบที่: {cycleCount}</span>
-            </div>
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
-              >
-                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              </button>
-              <button 
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-yellow-300' : 'hover:bg-black/5 text-slate-600'}`}
-              >
-                {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Mode Selector */}
-          <div className={`flex gap-1 p-1 rounded-full mb-8 shadow-inner ${isDarkMode ? 'bg-[#0f172a]' : 'bg-slate-100'}`}>
-            {Object.keys(MODES).map((m) => (
-              <button
-                key={m}
-                onClick={() => switchMode(m)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  mode === m 
-                    ? `bg-white text-blue-600 shadow-sm transform scale-105 ${isDarkMode ? 'bg-slate-700 text-blue-300' : ''}`
-                    : `text-gray-400 hover:text-gray-500 ${isDarkMode ? 'hover:text-slate-300' : ''}`
-                }`}
-              >
-                {m === 'focus' ? 'Focus' : m === 'shortBreak' ? 'Short' : 'Long'}
-              </button>
-            ))}
-          </div>
-
-          {/* Timer Circle */}
-          <div className="relative mb-8 group">
-            {/* SVG Ring */}
-            <svg className="w-64 h-64 transform -rotate-90">
-              <circle
-                cx="128"
-                cy="128"
-                r="120"
-                stroke="currentColor"
-                strokeWidth="8"
-                fill="transparent"
-                className={`${isDarkMode ? 'text-slate-700' : 'text-slate-100'}`}
-              />
-              <circle
-                cx="128"
-                cy="128"
-                r="120"
-                stroke="currentColor"
-                strokeWidth="8"
-                fill="transparent"
-                strokeDasharray={2 * Math.PI * 120}
-                strokeDashoffset={2 * Math.PI * 120 * (1 - calculateProgress() / 100)}
-                className={`${MODES[mode].ring} transition-all duration-1000 ease-linear`}
-                strokeLinecap="round"
-              />
-            </svg>
-
-            {/* Center Content */}
-            <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
-              <div className={`text-6xl mb-2 transition-transform duration-500 ${isActive ? 'animate-bounce-slow' : ''}`}>
-                {MODES[mode].mascot}
-              </div>
-              
-              {/* Editable Time Display */}
-              <div className="relative group/time">
-                {isEditingTime && !isActive ? (
-                   <input
-                    autoFocus
-                    type="number"
-                    defaultValue={Math.floor(timeLeft / 60)}
-                    onBlur={handleTimeInputBlur}
-                    onKeyDown={handleKeyDown}
-                    className={`text-5xl font-bold tracking-tight font-mono text-center w-32 rounded-lg outline-none border-b-2 border-blue-400 bg-transparent ${themeStyles.text}`}
-                  />
-                ) : (
-                  <div 
-                    onClick={() => !isActive && setIsEditingTime(true)}
-                    className={`text-5xl font-bold tracking-tight font-mono transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${isActive ? 'scale-110' : 'hover:scale-105'} ${themeStyles.text}`}
-                    title="Click to edit time"
-                  >
-                    {formatTime(timeLeft)}
-                    {!isActive && <Edit3 size={16} className="opacity-0 group-hover/time:opacity-50 transition-opacity absolute -right-6" />}
-                  </div>
-                )}
-              </div>
-
-              {/* Time Adjustment Buttons (Visible when paused) */}
-              {!isActive && !isEditingTime && (
-                <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button onClick={() => adjustTime(60)} className={`p-1 rounded hover:bg-black/5 ${themeStyles.subtext}`}><ChevronUp size={20}/></button>
-                   <button onClick={() => adjustTime(-60)} className={`p-1 rounded hover:bg-black/5 ${themeStyles.subtext}`}><ChevronDown size={20}/></button>
-                </div>
-              )}
-
-              <p className={`mt-2 font-medium animate-pulse ${MODES[mode].color}`}>
-                {isActive ? MODES[mode].label : 'พร้อมลุยไหม?'}
-              </p>
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="flex gap-4 mb-10">
-            <button
-              onClick={toggleTimer}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-110 active:scale-95 ${MODES[mode].accent}`}
-            >
-              {isActive ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="ml-1" />}
-            </button>
-            <button
-              onClick={resetTimer}
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-            >
-              <RotateCcw size={24} />
-            </button>
-          </div>
-
-          {/* Tasks Section */}
-          <div className={`w-full rounded-2xl p-4 shadow-sm border transition-colors ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white/50 border-white/60'}`}>
-            <h3 className={`font-semibold mb-3 flex items-center gap-2 ${themeStyles.text}`}>
-              <Code size={18} />
-              Mission Log
-            </h3>
-            
-            <form onSubmit={addTask} className="flex gap-2 mb-3">
-              <input
-                type="text"
-                value={newTask}
-                onChange={(e) => setNewTask(e.target.value)}
-                placeholder="เป้าหมายรอบนี้คือ..."
-                className={`flex-1 px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-blue-200 outline-none text-sm shadow-sm transition-colors ${themeStyles.input}`}
-              />
-              <button 
-                type="submit"
-                className={`p-2 rounded-xl text-white transition-colors shadow-sm hover:scale-105 active:scale-95 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-slate-800 hover:bg-slate-700'}`}
-              >
-                <Plus size={20} />
-              </button>
-            </form>
-
-            <div className="space-y-2 max-h-32 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
-              {tasks.length === 0 && (
-                <div className={`text-center text-sm py-4 italic ${themeStyles.subtext}`}>
-                  ยังไม่มีภารกิจ พักผ่อนหรือเริ่มลุยดี?
-                </div>
-              )}
-              {tasks.map(task => (
-                <div 
-                  key={task.id} 
-                  className={`group flex items-center justify-between p-2 rounded-lg transition-all ${task.completed ? (isDarkMode ? 'bg-teal-900/30' : 'bg-green-50/50') : (isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : `bg-white ${themeStyles.taskHover}`)}`}
-                >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <button 
-                      onClick={() => toggleTask(task.id)}
-                      className={`flex-shrink-0 transition-colors ${task.completed ? 'text-teal-500' : (isDarkMode ? 'text-slate-400 hover:text-blue-400' : 'text-gray-300 hover:text-blue-400')}`}
-                    >
-                      <CheckCircle size={20} className={task.completed ? 'fill-current' : ''} />
-                    </button>
-                    <span className={`text-sm truncate transition-all ${task.completed ? 'text-gray-400 line-through' : themeStyles.text}`}>
-                      {task.text}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => deleteTask(task.id)}
-                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>
-      </div>
-      
-      {/* Styles for custom animations */}
-      <style jsx>{`
+        /* Animation Keyframes */
         @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
         }
         .animate-blob {
-          animation: blob 7s infinite;
+            animation: blob 7s infinite;
         }
         .animation-delay-2000 {
-          animation-delay: 2s;
+            animation-delay: 2s;
         }
         .animate-bounce-slow {
-          animation: bounce 2s infinite;
+            animation: bounce 2s infinite;
         }
-        /* Custom scrollbar */
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 4px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background-color: ${isDarkMode ? '#475569' : '#e5e7eb'};
-          border-radius: 20px;
-        }
-      `}</style>
-    </div>
-  );
-};
 
-export default CozyCodeApp;
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #e5e7eb;
+            border-radius: 20px;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+    </style>
+</head>
+<body class="transition-colors duration-700 ease-in-out min-h-screen flex items-center justify-center p-4 overflow-hidden" id="main-body">
+
+    <!-- Main Card -->
+    <div id="main-card" class="w-full max-w-md backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border transition-colors duration-500 relative z-10">
+        
+        <!-- Background Blobs (Inside Wrapper for relative positioning) -->
+        <div id="blob1" class="absolute -top-20 -right-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-700 pointer-events-none"></div>
+        <div id="blob2" class="absolute -bottom-20 -left-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-700 pointer-events-none"></div>
+
+        <div class="relative z-10 p-8 flex flex-col items-center">
+            
+            <!-- Header & Controls -->
+            <div class="w-full flex justify-between items-center mb-6 text-sm font-medium transition-colors" id="header-text">
+                <div id="cycle-badge" class="flex items-center gap-2 px-3 py-1 rounded-full transition-colors">
+                    <span id="cycle-count">รอบที่: 0</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleSound()" id="sound-btn" class="p-2 rounded-full transition-colors">
+                        <i data-lucide="volume-2"></i>
+                    </button>
+                    <button onclick="toggleTheme()" id="theme-btn" class="p-2 rounded-full transition-colors">
+                        <i data-lucide="sun"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mode Selector -->
+            <div id="mode-selector" class="flex gap-1 p-1 rounded-full mb-8 shadow-inner transition-colors">
+                <!-- Buttons injected by JS -->
+            </div>
+
+            <!-- Timer Circle -->
+            <div class="relative mb-8 group">
+                <!-- SVG Ring -->
+                <svg class="w-64 h-64 transform -rotate-90">
+                    <circle cx="128" cy="128" r="120" stroke="currentColor" stroke-width="8" fill="transparent" id="ring-bg" class="transition-colors" />
+                    <circle cx="128" cy="128" r="120" stroke="currentColor" stroke-width="8" fill="transparent" 
+                            stroke-dasharray="753.98" stroke-dashoffset="0" 
+                            id="ring-progress" class="transition-all duration-1000 ease-linear" stroke-linecap="round" />
+                </svg>
+
+                <!-- Center Content -->
+                <div class="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+                    <div id="mascot" class="text-6xl mb-2 transition-transform duration-500 select-none">
+                        👨‍💻
+                    </div>
+                    
+                    <!-- Time Display / Input -->
+                    <div class="relative group/time">
+                        <div id="time-display-container" class="flex items-center justify-center cursor-pointer">
+                            <span id="time-display" class="text-5xl font-bold tracking-tight font-mono transition-all duration-300">25:00</span>
+                            <i data-lucide="edit-3" id="edit-icon" class="absolute -right-6 opacity-0 group-hover/time:opacity-50 transition-opacity w-4 h-4"></i>
+                        </div>
+                        <input type="number" id="time-input" class="hidden text-5xl font-bold tracking-tight font-mono text-center w-32 rounded-lg outline-none border-b-2 border-blue-400 bg-transparent" />
+                    </div>
+
+                    <!-- Adjustment Buttons -->
+                    <div id="adjust-buttons" class="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="adjustTime(60)" class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400"><i data-lucide="chevron-up" width="20"></i></button>
+                        <button onclick="adjustTime(-60)" class="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400"><i data-lucide="chevron-down" width="20"></i></button>
+                    </div>
+
+                    <p id="status-label" class="mt-2 font-medium animate-pulse transition-colors select-none">พร้อมลุยไหม?</p>
+                </div>
+            </div>
+
+            <!-- Play Controls -->
+            <div class="flex gap-4 mb-10">
+                <button id="play-btn" onclick="toggleTimer()" class="w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg transition-all hover:scale-110 active:scale-95">
+                    <i data-lucide="play" class="ml-1 fill-current"></i>
+                </button>
+                <button id="reset-btn" onclick="resetTimer()" class="w-16 h-16 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+            </div>
+
+            <!-- Tasks Section -->
+            <div id="task-container" class="w-full rounded-2xl p-4 shadow-sm border transition-colors">
+                <h3 id="task-header" class="font-semibold mb-3 flex items-center gap-2">
+                    <i data-lucide="code" width="18"></i>
+                    Mission Log
+                </h3>
+                
+                <form onsubmit="addTask(event)" class="flex gap-2 mb-3">
+                    <input type="text" id="task-input" placeholder="เป้าหมายรอบนี้คือ..." class="flex-1 px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-blue-200 outline-none text-sm shadow-sm transition-colors">
+                    <button type="submit" id="add-task-btn" class="p-2 rounded-xl text-white transition-colors shadow-sm hover:scale-105 active:scale-95">
+                        <i data-lucide="plus" width="20"></i>
+                    </button>
+                </form>
+
+                <div id="task-list" class="space-y-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
+                    <!-- Tasks will be injected here -->
+                    <div class="text-center text-sm py-4 italic text-gray-400">ยังไม่มีภารกิจ พักผ่อนหรือเริ่มลุยดี?</div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- State ---
+        const state = {
+            mode: 'focus', // focus, shortBreak, longBreak
+            timeLeft: 25 * 60,
+            isActive: false,
+            tasks: [],
+            soundEnabled: true,
+            cycleCount: 0,
+            isDarkMode: false,
+            isEditing: false
+        };
+
+        let timerInterval = null;
+
+        // --- Config ---
+        const MODES = {
+            focus: { defaultTime: 25 * 60, label: 'Focus Time', mascot: '👨‍💻' },
+            shortBreak: { defaultTime: 5 * 60, label: 'Short Break', mascot: '🍵' },
+            longBreak: { defaultTime: 15 * 60, label: 'Long Break', mascot: '🛌' }
+        };
+
+        // --- DOM Elements ---
+        const els = {
+            body: document.getElementById('main-body'),
+            card: document.getElementById('main-card'),
+            blob1: document.getElementById('blob1'),
+            blob2: document.getElementById('blob2'),
+            headerText: document.getElementById('header-text'),
+            cycleBadge: document.getElementById('cycle-badge'),
+            cycleCount: document.getElementById('cycle-count'),
+            soundBtn: document.getElementById('sound-btn'),
+            themeBtn: document.getElementById('theme-btn'),
+            modeSelector: document.getElementById('mode-selector'),
+            ringBg: document.getElementById('ring-bg'),
+            ringProgress: document.getElementById('ring-progress'),
+            mascot: document.getElementById('mascot'),
+            timeDisplay: document.getElementById('time-display'),
+            timeDisplayContainer: document.getElementById('time-display-container'),
+            timeInput: document.getElementById('time-input'),
+            editIcon: document.getElementById('edit-icon'),
+            adjustButtons: document.getElementById('adjust-buttons'),
+            statusLabel: document.getElementById('status-label'),
+            playBtn: document.getElementById('play-btn'),
+            resetBtn: document.getElementById('reset-btn'),
+            taskContainer: document.getElementById('task-container'),
+            taskHeader: document.getElementById('task-header'),
+            taskInput: document.getElementById('task-input'),
+            addTaskBtn: document.getElementById('add-task-btn'),
+            taskList: document.getElementById('task-list')
+        };
+
+        // --- Initialization ---
+        function init() {
+            renderModeSelector();
+            updateUI();
+            lucide.createIcons();
+            
+            // Event Listeners for Time Editing
+            els.timeDisplayContainer.addEventListener('click', () => {
+                if (!state.isActive) enableTimeEdit();
+            });
+            els.timeInput.addEventListener('blur', disableTimeEdit);
+            els.timeInput.addEventListener('keydown', (e) => {
+                if(e.key === 'Enter') disableTimeEdit();
+            });
+        }
+
+        // --- Timer Logic ---
+        function toggleTimer() {
+            state.isActive = !state.isActive;
+            state.isEditing = false;
+            updateUI();
+            
+            if (state.isActive) {
+                timerInterval = setInterval(() => {
+                    if (state.timeLeft > 0) {
+                        state.timeLeft--;
+                        updateTimerUI(); // Update only timer parts for performance
+                    } else {
+                        handleTimerComplete();
+                    }
+                }, 1000);
+            } else {
+                clearInterval(timerInterval);
+            }
+        }
+
+        function resetTimer() {
+            state.isActive = false;
+            state.isEditing = false;
+            clearInterval(timerInterval);
+            state.timeLeft = MODES[state.mode].defaultTime;
+            updateUI();
+        }
+
+        function handleTimerComplete() {
+            clearInterval(timerInterval);
+            state.isActive = false;
+            if (state.soundEnabled) {
+                // Play sound logic (simulated)
+                console.log("Beep!"); 
+            }
+
+            if (state.mode === 'focus') {
+                state.cycleCount++;
+                if (state.cycleCount % 4 === 0) {
+                    switchMode('longBreak');
+                } else {
+                    switchMode('shortBreak');
+                }
+            } else {
+                switchMode('focus');
+            }
+        }
+
+        function switchMode(newMode) {
+            state.mode = newMode;
+            state.timeLeft = MODES[newMode].defaultTime;
+            state.isActive = false;
+            state.isEditing = false;
+            clearInterval(timerInterval);
+            renderModeSelector(); // Re-render buttons active state
+            updateUI();
+        }
+
+        function adjustTime(amount) {
+            if (state.isActive) return;
+            state.timeLeft = Math.max(0, state.timeLeft + amount);
+            updateTimerUI();
+        }
+
+        function enableTimeEdit() {
+            state.isEditing = true;
+            els.timeDisplayContainer.classList.add('hidden');
+            els.timeInput.classList.remove('hidden');
+            els.timeInput.value = Math.floor(state.timeLeft / 60);
+            els.timeInput.focus();
+        }
+
+        function disableTimeEdit() {
+            state.isEditing = false;
+            const val = parseInt(els.timeInput.value);
+            if (!isNaN(val) && val > 0) {
+                state.timeLeft = val * 60;
+            }
+            els.timeInput.classList.add('hidden');
+            els.timeDisplayContainer.classList.remove('hidden');
+            updateUI();
+        }
+
+        // --- UI Updates ---
+        function getThemeStyles() {
+            const d = state.isDarkMode;
+            return {
+                bg: d ? 'bg-[#0f172a]' : 'bg-[#FDFBF7]',
+                card: d ? 'bg-[#1e293b]/90 border-slate-700' : 'bg-white/90 border-white/60',
+                text: d ? 'text-slate-100' : 'text-slate-700',
+                subtext: d ? 'text-slate-400' : 'text-slate-500',
+                input: d ? 'bg-[#334155] text-white placeholder-slate-400' : 'bg-white text-slate-700 placeholder-slate-400',
+                blob1: d ? 'bg-blue-900' : 'bg-blue-200',
+                blob2: d ? 'bg-indigo-900' : 'bg-cyan-200',
+                
+                // Dynamic colors based on mode
+                focusColor: d ? 'text-blue-400' : 'text-blue-500',
+                focusRing: d ? 'text-blue-500' : 'text-blue-400',
+                focusAccent: 'bg-blue-500',
+                
+                sbColor: d ? 'text-teal-400' : 'text-teal-500',
+                sbRing: d ? 'text-teal-500' : 'text-teal-400',
+                sbAccent: 'bg-teal-500',
+                
+                lbColor: d ? 'text-indigo-400' : 'text-indigo-500',
+                lbRing: d ? 'text-indigo-500' : 'text-indigo-400',
+                lbAccent: 'bg-indigo-500',
+            };
+        }
+
+        function updateUI() {
+            const t = getThemeStyles();
+            
+            // 1. Global Theme Classes
+            els.body.className = `transition-colors duration-700 ease-in-out min-h-screen flex items-center justify-center p-4 overflow-hidden ${t.bg} ${state.isDarkMode ? 'dark' : ''}`;
+            
+            // 2. Card Theme
+            els.card.className = `w-full max-w-md backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border transition-colors duration-500 relative z-10 ${t.card}`;
+            
+            // 3. Blobs
+            els.blob1.className = `absolute -top-20 -right-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-700 pointer-events-none ${t.blob1}`;
+            els.blob2.className = `absolute -bottom-20 -left-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-700 pointer-events-none ${t.blob2}`;
+
+            // 4. Header Controls
+            els.headerText.className = `w-full flex justify-between items-center mb-6 text-sm font-medium transition-colors ${t.subtext}`;
+            els.cycleBadge.className = `flex items-center gap-2 px-3 py-1 rounded-full transition-colors ${state.isDarkMode ? 'bg-white/10' : 'bg-black/5'}`;
+            els.cycleCount.innerText = `รอบที่: ${state.cycleCount}`;
+            
+            els.soundBtn.className = `p-2 rounded-full transition-colors ${state.isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`;
+            els.soundBtn.innerHTML = state.soundEnabled ? '<i data-lucide="volume-2" width="18"></i>' : '<i data-lucide="volume-x" width="18"></i>';
+
+            els.themeBtn.className = `p-2 rounded-full transition-colors ${state.isDarkMode ? 'hover:bg-white/10 text-yellow-300' : 'hover:bg-black/5 text-slate-600'}`;
+            els.themeBtn.innerHTML = state.isDarkMode ? '<i data-lucide="moon" width="18"></i>' : '<i data-lucide="sun" width="18"></i>';
+
+            // 5. Mode Selector BG
+            els.modeSelector.className = `flex gap-1 p-1 rounded-full mb-8 shadow-inner transition-colors ${state.isDarkMode ? 'bg-[#0f172a]' : 'bg-slate-100'}`;
+
+            // 6. Ring & Timer Color Logic
+            let currentColor, currentRing, currentAccent;
+            if(state.mode === 'focus') { currentColor = t.focusColor; currentRing = t.focusRing; currentAccent = t.focusAccent; }
+            else if(state.mode === 'shortBreak') { currentColor = t.sbColor; currentRing = t.sbRing; currentAccent = t.sbAccent; }
+            else { currentColor = t.lbColor; currentRing = t.lbRing; currentAccent = t.lbAccent; }
+
+            els.ringBg.className = `transition-colors ${state.isDarkMode ? 'text-slate-700' : 'text-slate-100'}`;
+            els.ringProgress.className = `transition-all duration-1000 ease-linear ${currentRing}`;
+            
+            els.mascot.innerText = MODES[state.mode].mascot;
+            if(state.isActive) els.mascot.classList.add('animate-bounce-slow');
+            else els.mascot.classList.remove('animate-bounce-slow');
+
+            els.timeDisplay.className = `text-5xl font-bold tracking-tight font-mono transition-all duration-300 ${state.isActive ? 'scale-110' : 'group-hover/time:scale-105'} ${t.text}`;
+            els.timeInput.className = `hidden text-5xl font-bold tracking-tight font-mono text-center w-32 rounded-lg outline-none border-b-2 border-blue-400 bg-transparent ${t.text}`;
+
+            els.statusLabel.className = `mt-2 font-medium animate-pulse transition-colors select-none ${currentColor}`;
+            els.statusLabel.innerText = state.isActive ? MODES[state.mode].label : 'พร้อมลุยไหม?';
+
+            // 7. Play/Reset Buttons
+            els.playBtn.className = `w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg transition-all hover:scale-110 active:scale-95 ${currentAccent} ${state.isActive ? '' : 'pl-1'}`;
+            els.playBtn.innerHTML = state.isActive ? '<i data-lucide="pause" fill="currentColor"></i>' : '<i data-lucide="play" fill="currentColor"></i>';
+            
+            els.resetBtn.className = `w-16 h-16 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${state.isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`;
+
+            // 8. Task Container
+            els.taskContainer.className = `w-full rounded-2xl p-4 shadow-sm border transition-colors ${state.isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white/50 border-white/60'}`;
+            els.taskHeader.className = `font-semibold mb-3 flex items-center gap-2 ${t.text}`;
+            
+            els.taskInput.className = `flex-1 px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-blue-200 outline-none text-sm shadow-sm transition-colors ${t.input}`;
+            els.addTaskBtn.className = `p-2 rounded-xl text-white transition-colors shadow-sm hover:scale-105 active:scale-95 ${state.isDarkMode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-slate-800 hover:bg-slate-700'}`;
+
+            // 9. Adjust Controls Visibility
+            if(state.isActive || state.isEditing) {
+                els.adjustButtons.classList.add('hidden');
+                els.editIcon.classList.add('hidden');
+            } else {
+                els.adjustButtons.classList.remove('hidden');
+                els.editIcon.classList.remove('hidden');
+            }
+
+            updateTimerUI();
+            renderTasks();
+            lucide.createIcons(); // Refresh icons after innerHTML changes
+        }
+
+        function updateTimerUI() {
+            // Time Text
+            const mins = Math.floor(state.timeLeft / 60);
+            const secs = state.timeLeft % 60;
+            els.timeDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            // Ring Progress
+            const total = Math.max(MODES[state.mode].defaultTime, state.timeLeft);
+            const percent = total > 0 ? ((total - state.timeLeft) / total) * 100 : 0;
+            const circumference = 2 * Math.PI * 120; // ~753.98
+            const offset = circumference * (1 - percent / 100);
+            els.ringProgress.style.strokeDashoffset = offset;
+        }
+
+        function renderModeSelector() {
+            els.modeSelector.innerHTML = Object.keys(MODES).map(m => {
+                const isActive = state.mode === m;
+                let activeClass = '';
+                if(isActive) {
+                    activeClass = `bg-white text-blue-600 shadow-sm transform scale-105 ${state.isDarkMode ? '!bg-slate-700 !text-blue-300' : ''}`;
+                } else {
+                    activeClass = `text-gray-400 hover:text-gray-500 ${state.isDarkMode ? 'hover:text-slate-300' : ''}`;
+                }
+                
+                const label = m === 'focus' ? 'Focus' : m === 'shortBreak' ? 'Short' : 'Long';
+                
+                return `<button onclick="switchMode('${m}')" 
+                        class="px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${activeClass}">
+                        ${label}
+                        </button>`;
+            }).join('');
+        }
+
+        // --- Task Logic ---
+        function renderTasks() {
+            if (state.tasks.length === 0) {
+                els.taskList.innerHTML = `<div class="text-center text-sm py-4 italic ${state.isDarkMode ? 'text-slate-400' : 'text-gray-400'}">ยังไม่มีภารกิจ พักผ่อนหรือเริ่มลุยดี?</div>`;
+                return;
+            }
+
+            els.taskList.innerHTML = state.tasks.map(task => {
+                const bgClass = task.completed 
+                    ? (state.isDarkMode ? 'bg-teal-900/30' : 'bg-green-50/50') 
+                    : (state.isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-blue-50');
+                
+                const textClass = task.completed 
+                    ? 'text-gray-400 line-through' 
+                    : (state.isDarkMode ? 'text-slate-100' : 'text-slate-700');
+                
+                const checkColor = task.completed ? 'text-teal-500 fill-current' : (state.isDarkMode ? 'text-slate-400 hover:text-blue-400' : 'text-gray-300 hover:text-blue-400');
+
+                return `
+                <div class="group flex items-center justify-between p-2 rounded-lg transition-all ${bgClass}">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <button onclick="toggleTask(${task.id})" class="flex-shrink-0 transition-colors ${checkColor}">
+                            <i data-lucide="check-circle" width="20" class="${task.completed ? 'fill-current' : ''}"></i>
+                        </button>
+                        <span class="text-sm truncate transition-all ${textClass}">${task.text}</span>
+                    </div>
+                    <button onclick="deleteTask(${task.id})" class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity p-1">
+                        <i data-lucide="trash-2" width="16"></i>
+                    </button>
+                </div>`;
+            }).join('');
+            
+            lucide.createIcons();
+        }
+
+        function addTask(e) {
+            e.preventDefault();
+            const text = els.taskInput.value.trim();
+            if(!text) return;
+            state.tasks.push({ id: Date.now(), text, completed: false });
+            els.taskInput.value = '';
+            renderTasks();
+        }
+
+        function toggleTask(id) {
+            state.tasks = state.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+            renderTasks();
+        }
+
+        function deleteTask(id) {
+            state.tasks = state.tasks.filter(t => t.id !== id);
+            renderTasks();
+        }
+
+        // --- Other Controls ---
+        function toggleTheme() {
+            state.isDarkMode = !state.isDarkMode;
+            renderModeSelector(); // Update button styles
+            updateUI();
+        }
+
+        function toggleSound() {
+            state.soundEnabled = !state.soundEnabled;
+            updateUI();
+        }
+
+        // Start App
+        init();
+
+    </script>
+</body>
+</html>
