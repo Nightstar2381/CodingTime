@@ -1,0 +1,393 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Play, Pause, RotateCcw, Code, CheckCircle, Plus, Trash2, Volume2, VolumeX, Sun, Moon, Settings, Edit3, ChevronUp, ChevronDown } from 'lucide-react';
+
+const CozyCodeApp = () => {
+  // --- State Management ---
+  const [mode, setMode] = useState('focus'); // 'focus', 'shortBreak', 'longBreak'
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
+  const [isActive, setIsActive] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState('');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [cycleCount, setCycleCount] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isEditingTime, setIsEditingTime] = useState(false);
+
+  // Audio refs
+  const timerRef = useRef(null);
+
+  // --- Configuration ---
+  // Theme configuration for Light/Dark modes
+  const themeStyles = {
+    bg: isDarkMode ? 'bg-[#0f172a]' : 'bg-[#FDFBF7]', // Dark Slate vs Cream
+    card: isDarkMode ? 'bg-[#1e293b]/90 border-slate-700' : 'bg-white/90 border-white/60',
+    text: isDarkMode ? 'text-slate-100' : 'text-slate-700',
+    subtext: isDarkMode ? 'text-slate-400' : 'text-slate-500',
+    input: isDarkMode ? 'bg-[#334155] text-white placeholder-slate-400' : 'bg-white text-slate-700 placeholder-slate-400',
+    taskHover: isDarkMode ? 'hover:bg-[#334155]' : 'hover:bg-blue-50',
+    blob1: isDarkMode ? 'bg-blue-900' : 'bg-blue-200',
+    blob2: isDarkMode ? 'bg-indigo-900' : 'bg-cyan-200',
+  };
+
+  const MODES = {
+    focus: { 
+      defaultTime: 25 * 60, 
+      label: 'Focus Time', 
+      color: isDarkMode ? 'text-blue-400' : 'text-blue-500', 
+      ring: isDarkMode ? 'text-blue-500' : 'text-blue-400',
+      accent: 'bg-blue-500',
+      mascot: '👨‍💻' 
+    },
+    shortBreak: { 
+      defaultTime: 5 * 60, 
+      label: 'Short Break', 
+      color: isDarkMode ? 'text-teal-400' : 'text-teal-500', 
+      ring: isDarkMode ? 'text-teal-500' : 'text-teal-400',
+      accent: 'bg-teal-500',
+      mascot: '🍵' 
+    },
+    longBreak: { 
+      defaultTime: 15 * 60, 
+      label: 'Long Break', 
+      color: isDarkMode ? 'text-indigo-400' : 'text-indigo-500', 
+      ring: isDarkMode ? 'text-indigo-500' : 'text-indigo-400',
+      accent: 'bg-indigo-500',
+      mascot: '🛌' 
+    },
+  };
+
+  // --- Timer Logic ---
+  useEffect(() => {
+    if (isActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      clearInterval(timerRef.current);
+      setIsActive(false);
+      handleTimerComplete();
+    }
+    return () => clearInterval(timerRef.current);
+  }, [isActive, timeLeft]);
+
+  const handleTimerComplete = () => {
+    if (soundEnabled) {
+      // Play sound here
+    }
+    
+    if (mode === 'focus') {
+      const newCycle = cycleCount + 1;
+      setCycleCount(newCycle);
+      if (newCycle % 4 === 0) {
+        switchMode('longBreak');
+      } else {
+        switchMode('shortBreak');
+      }
+    } else {
+      switchMode('focus');
+    }
+  };
+
+  const switchMode = (newMode) => {
+    setMode(newMode);
+    setTimeLeft(MODES[newMode].defaultTime);
+    setIsActive(false);
+    setIsEditingTime(false);
+  };
+
+  const toggleTimer = () => {
+    setIsActive(!isActive);
+    setIsEditingTime(false);
+  };
+
+  const resetTimer = () => {
+    setIsActive(false);
+    setTimeLeft(MODES[mode].defaultTime);
+    setIsEditingTime(false);
+  };
+
+  // --- Custom Time Logic ---
+  const adjustTime = (amount) => {
+    setTimeLeft(prev => {
+      const newTime = prev + amount;
+      return newTime > 0 ? newTime : 0; // Prevent negative time
+    });
+  };
+
+  const handleTimeInputBlur = (e) => {
+    setIsEditingTime(false);
+    let val = parseInt(e.target.value);
+    if (!isNaN(val) && val > 0) {
+      setTimeLeft(val * 60);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleTimeInputBlur(e);
+    }
+  };
+
+  // --- Task Logic ---
+  const addTask = (e) => {
+    e.preventDefault();
+    if (!newTask.trim()) return;
+    setTasks([...tasks, { id: Date.now(), text: newTask, completed: false }]);
+    setNewTask('');
+  };
+
+  const toggleTask = (id) => {
+    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(tasks.filter(t => t.id !== id));
+  };
+
+  // --- Helper Functions ---
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const calculateProgress = () => {
+    // Note: Progress calculation is based on current total start time 
+    // Usually we track totalDuration separately, but for simplicity we assume max standard
+    // Or we just animate based on % of *something*. 
+    // To make the ring work nicely with custom time, we need a reference total.
+    // Here we'll just use the current timeLeft vs the mode default OR the max of both.
+    const total = Math.max(MODES[mode].defaultTime, timeLeft); 
+    // Fallback logic to prevent division by zero or weird jumps if we edit time higher than default
+    return total > 0 ? ((total - timeLeft) / total) * 100 : 0;
+  };
+
+  return (
+    <div className={`min-h-screen transition-colors duration-700 ease-in-out font-sans flex items-center justify-center p-4 ${themeStyles.bg}`}>
+      
+      {/* Main Card */}
+      <div className={`w-full max-w-md backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border transition-colors duration-500 relative ${themeStyles.card}`}>
+        
+        {/* Decorative Blobs */}
+        <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob transition-colors duration-700 ${themeStyles.blob1}`}></div>
+        <div className={`absolute -bottom-20 -left-20 w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000 transition-colors duration-700 ${themeStyles.blob2}`}></div>
+
+        <div className="relative z-10 p-8 flex flex-col items-center">
+          
+          {/* Header & Controls */}
+          <div className={`w-full flex justify-between items-center mb-6 text-sm font-medium ${themeStyles.subtext}`}>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${isDarkMode ? 'bg-white/10' : 'bg-black/5'}`}>
+              <span>รอบที่: {cycleCount}</span>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
+              >
+                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              </button>
+              <button 
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-white/10 text-yellow-300' : 'hover:bg-black/5 text-slate-600'}`}
+              >
+                {isDarkMode ? <Moon size={18} /> : <Sun size={18} />}
+              </button>
+            </div>
+          </div>
+
+          {/* Mode Selector */}
+          <div className={`flex gap-1 p-1 rounded-full mb-8 shadow-inner ${isDarkMode ? 'bg-[#0f172a]' : 'bg-slate-100'}`}>
+            {Object.keys(MODES).map((m) => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  mode === m 
+                    ? `bg-white text-blue-600 shadow-sm transform scale-105 ${isDarkMode ? 'bg-slate-700 text-blue-300' : ''}`
+                    : `text-gray-400 hover:text-gray-500 ${isDarkMode ? 'hover:text-slate-300' : ''}`
+                }`}
+              >
+                {m === 'focus' ? 'Focus' : m === 'shortBreak' ? 'Short' : 'Long'}
+              </button>
+            ))}
+          </div>
+
+          {/* Timer Circle */}
+          <div className="relative mb-8 group">
+            {/* SVG Ring */}
+            <svg className="w-64 h-64 transform -rotate-90">
+              <circle
+                cx="128"
+                cy="128"
+                r="120"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="transparent"
+                className={`${isDarkMode ? 'text-slate-700' : 'text-slate-100'}`}
+              />
+              <circle
+                cx="128"
+                cy="128"
+                r="120"
+                stroke="currentColor"
+                strokeWidth="8"
+                fill="transparent"
+                strokeDasharray={2 * Math.PI * 120}
+                strokeDashoffset={2 * Math.PI * 120 * (1 - calculateProgress() / 100)}
+                className={`${MODES[mode].ring} transition-all duration-1000 ease-linear`}
+                strokeLinecap="round"
+              />
+            </svg>
+
+            {/* Center Content */}
+            <div className="absolute top-0 left-0 w-full h-full flex flex-col items-center justify-center">
+              <div className={`text-6xl mb-2 transition-transform duration-500 ${isActive ? 'animate-bounce-slow' : ''}`}>
+                {MODES[mode].mascot}
+              </div>
+              
+              {/* Editable Time Display */}
+              <div className="relative group/time">
+                {isEditingTime && !isActive ? (
+                   <input
+                    autoFocus
+                    type="number"
+                    defaultValue={Math.floor(timeLeft / 60)}
+                    onBlur={handleTimeInputBlur}
+                    onKeyDown={handleKeyDown}
+                    className={`text-5xl font-bold tracking-tight font-mono text-center w-32 rounded-lg outline-none border-b-2 border-blue-400 bg-transparent ${themeStyles.text}`}
+                  />
+                ) : (
+                  <div 
+                    onClick={() => !isActive && setIsEditingTime(true)}
+                    className={`text-5xl font-bold tracking-tight font-mono transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 ${isActive ? 'scale-110' : 'hover:scale-105'} ${themeStyles.text}`}
+                    title="Click to edit time"
+                  >
+                    {formatTime(timeLeft)}
+                    {!isActive && <Edit3 size={16} className="opacity-0 group-hover/time:opacity-50 transition-opacity absolute -right-6" />}
+                  </div>
+                )}
+              </div>
+
+              {/* Time Adjustment Buttons (Visible when paused) */}
+              {!isActive && !isEditingTime && (
+                <div className="absolute -right-8 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button onClick={() => adjustTime(60)} className={`p-1 rounded hover:bg-black/5 ${themeStyles.subtext}`}><ChevronUp size={20}/></button>
+                   <button onClick={() => adjustTime(-60)} className={`p-1 rounded hover:bg-black/5 ${themeStyles.subtext}`}><ChevronDown size={20}/></button>
+                </div>
+              )}
+
+              <p className={`mt-2 font-medium animate-pulse ${MODES[mode].color}`}>
+                {isActive ? MODES[mode].label : 'พร้อมลุยไหม?'}
+              </p>
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div className="flex gap-4 mb-10">
+            <button
+              onClick={toggleTimer}
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white text-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-110 active:scale-95 ${MODES[mode].accent}`}
+            >
+              {isActive ? <Pause fill="currentColor" /> : <Play fill="currentColor" className="ml-1" />}
+            </button>
+            <button
+              onClick={resetTimer}
+              className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              <RotateCcw size={24} />
+            </button>
+          </div>
+
+          {/* Tasks Section */}
+          <div className={`w-full rounded-2xl p-4 shadow-sm border transition-colors ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white/50 border-white/60'}`}>
+            <h3 className={`font-semibold mb-3 flex items-center gap-2 ${themeStyles.text}`}>
+              <Code size={18} />
+              Mission Log
+            </h3>
+            
+            <form onSubmit={addTask} className="flex gap-2 mb-3">
+              <input
+                type="text"
+                value={newTask}
+                onChange={(e) => setNewTask(e.target.value)}
+                placeholder="เป้าหมายรอบนี้คือ..."
+                className={`flex-1 px-4 py-2 rounded-xl border-none focus:ring-2 focus:ring-blue-200 outline-none text-sm shadow-sm transition-colors ${themeStyles.input}`}
+              />
+              <button 
+                type="submit"
+                className={`p-2 rounded-xl text-white transition-colors shadow-sm hover:scale-105 active:scale-95 ${isDarkMode ? 'bg-blue-600 hover:bg-blue-500' : 'bg-slate-800 hover:bg-slate-700'}`}
+              >
+                <Plus size={20} />
+              </button>
+            </form>
+
+            <div className="space-y-2 max-h-32 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-gray-200">
+              {tasks.length === 0 && (
+                <div className={`text-center text-sm py-4 italic ${themeStyles.subtext}`}>
+                  ยังไม่มีภารกิจ พักผ่อนหรือเริ่มลุยดี?
+                </div>
+              )}
+              {tasks.map(task => (
+                <div 
+                  key={task.id} 
+                  className={`group flex items-center justify-between p-2 rounded-lg transition-all ${task.completed ? (isDarkMode ? 'bg-teal-900/30' : 'bg-green-50/50') : (isDarkMode ? 'bg-slate-700 hover:bg-slate-600' : `bg-white ${themeStyles.taskHover}`)}`}
+                >
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <button 
+                      onClick={() => toggleTask(task.id)}
+                      className={`flex-shrink-0 transition-colors ${task.completed ? 'text-teal-500' : (isDarkMode ? 'text-slate-400 hover:text-blue-400' : 'text-gray-300 hover:text-blue-400')}`}
+                    >
+                      <CheckCircle size={20} className={task.completed ? 'fill-current' : ''} />
+                    </button>
+                    <span className={`text-sm truncate transition-all ${task.completed ? 'text-gray-400 line-through' : themeStyles.text}`}>
+                      {task.text}
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => deleteTask(task.id)}
+                    className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition-opacity p-1"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+      </div>
+      
+      {/* Styles for custom animations */}
+      <style jsx>{`
+        @keyframes blob {
+          0% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+          100% { transform: translate(0px, 0px) scale(1); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animate-bounce-slow {
+          animation: bounce 2s infinite;
+        }
+        /* Custom scrollbar */
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 4px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: ${isDarkMode ? '#475569' : '#e5e7eb'};
+          border-radius: 20px;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default CozyCodeApp;
